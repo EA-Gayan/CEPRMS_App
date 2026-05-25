@@ -1,0 +1,304 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║          CEPERM — Implementation Plan                                        ║
+║          Consent-Enabled Patient Electronic Records Management               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TECHNOLOGY STACK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Frontend  →  React (Vite)  |  Axios  |  React Router  |  Lucide Icons
+  Backend   →  Python Flask  |  Flask-JWT-Extended  |  Flask-Bcrypt
+                             |  Flask-Limiter  |  Flask-CORS
+  Database  →  MongoDB  (PyMongo driver)
+  Security  →  AES-256-GCM encryption  |  JWT (httpOnly cookies)
+               ABAC middleware  |  Rate limiting  |  Audit logging
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PROJECT STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  CEPERM/
+  ├── implementation plan.txt        ← this file
+  ├── HOW_TO_RUN.txt                 ← setup & run guide
+  │
+  ├── Backend/
+  │   ├── app.py                     ← Flask app factory
+  │   ├── config.py                  ← all settings & env vars
+  │   ├── requirements.txt           ← Python dependencies
+  │   ├── .env                       ← secrets (not committed to git)
+  │   ├── .gitignore
+  │   │
+  │   ├── models/
+  │   │   ├── user.py                ← User document schema & builder
+  │   │   └── audit_log.py           ← Audit trail writer
+  │   │
+  │   ├── routes/
+  │   │   ├── auth.py                ← /api/auth/* (Phase 1) ✔ DONE
+  │   │   ├── patient.py             ← /api/patient/* (Phase 2)
+  │   │   ├── consent.py             ← /api/consent/* (Phase 2)
+  │   │   ├── doctor.py              ← /api/doctor/* (Phase 3)
+  │   │   ├── records.py             ← /api/records/* (Phase 3)
+  │   │   └── admin.py               ← /api/admin/* (Phase 4)
+  │   │
+  │   └── utils/
+  │       ├── jwt_utils.py           ← role_required() decorator
+  │       └── crypto.py              ← AES-256-GCM encrypt/decrypt
+  │
+  └── Frontend/
+      ├── vite.config.js             ← /api proxy → Flask :5000
+      ├── package.json
+      └── src/
+          ├── main.jsx               ← React entry point
+          ├── App.jsx                ← Router (all 4 phases)
+          ├── index.css              ← Design system & tokens
+          │
+          ├── api/
+          │   ├── axiosInstance.js   ← Axios base config + interceptor
+          │   └── auth.js            ← Auth API calls (Phase 1) ✔ DONE
+          │
+          ├── context/
+          │   └── AuthContext.jsx    ← Auth state + session restore
+          │
+          ├── components/
+          │   ├── ProtectedRoute.jsx ← Role-guarded route wrapper
+          │   ├── DashboardShell.jsx ← Shared navbar for all portals
+          │   └── DashboardShell.css
+          │
+          └── pages/
+              ├── LoginPage.jsx      ← Login/Register UI  ✔ DONE
+              ├── LoginPage.css
+              ├── patient/
+              │   ├── PatientDashboard.jsx    (Phase 2)
+              │   └── ConsentManagement.jsx   (Phase 2)
+              ├── doctor/
+              │   ├── DoctorDashboard.jsx     (Phase 3)
+              │   └── PatientRecordView.jsx   (Phase 3)
+              └── admin/
+                  └── AuditLogs.jsx           (Phase 4)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 1 — AUTHENTICATION  [ ✔ COMPLETE ]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Page:  /login
+
+  Frontend
+  ────────
+  • Toggle tabs: "Sign In" / "Create Account"
+  • Role selector on register: Patient | Doctor
+  • Patient-specific field: National Health ID
+  • Doctor-specific field: Specialization
+  • Password show/hide toggle
+
+  Backend API Endpoints
+  ─────────────────────
+  POST  /api/auth/register   →  Create patient or doctor account
+  POST  /api/auth/login      →  Validate credentials, set httpOnly JWT cookie
+  POST  /api/auth/logout     →  Clear JWT cookie
+  GET   /api/auth/me         →  Return current user from JWT
+
+  Security Controls
+  ─────────────────
+  [1] Rate limiting on /login: max 20 requests per hour (blocks brute-force)
+  [2] Rate limiting on /register: max 10 requests per hour
+  [3] Passwords hashed with bcrypt before storage (never stored in plain text)
+  [4] JWT stored in httpOnly + SameSite=Lax cookie (mitigates XSS attacks)
+  [5] JWT payload carries role claim — verified server-side on every request
+  [6] All login/register events written to MongoDB audit_logs collection
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 2 — PATIENT PORTAL  [ PENDING — Week 2 ]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  Page A: Patient Dashboard  (/patient/dashboard)                        │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  Frontend
+  ────────
+  • Summary profile card (name, NHI, account status)
+  • List of past medical visit records
+  • Current medications panel
+
+  Backend API
+  ───────────
+  GET  /api/patient/profile      →  Return profile from JWT identity
+  GET  /api/patient/my-records   →  Return own encrypted+decrypted records
+
+  Security Controls
+  ─────────────────
+  [1] Patient ID is read STRICTLY from the signed JWT — never from URL params
+      (Prevents IDOR: Insecure Direct Object Reference attacks)
+  [2] Records are stored AES-256-GCM encrypted in MongoDB
+      and decrypted only on authorized GET requests
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  Page B: Consent Management  (/patient/consent)                         │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  Frontend
+  ────────
+  • List of doctors currently authorized with [Revoke Access] button
+  • "Grant Access" panel: select Doctor ID + set expiry window (e.g. 2h, 8h)
+
+  Backend API
+  ───────────
+  POST  /api/consent/grant    →  Create time-limited consent record
+  GET   /api/consent/active   →  List all active (non-expired) grants
+  POST  /api/consent/revoke   →  Mark a consent record as revoked
+
+  Security Controls
+  ─────────────────
+  [1] Consent records store expiry timestamps — expired grants auto-denied
+  [2] Revocation is validated server-side before any DB write
+  [3] Every grant/revoke action is written to audit_logs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 3 — DOCTOR PORTAL  [ PENDING — Week 3 ]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  Page A: Doctor Dashboard  (/doctor/dashboard)                          │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  Frontend
+  ────────
+  • Search bar: find patients by Full Name or National Health ID
+  • Results show basic metadata only (Name, ID, consent status icon)
+
+  Backend API
+  ───────────
+  GET  /api/doctor/search-patients?q=<query>  →  Search patients
+
+  Security Controls
+  ─────────────────
+  [1] Search results NEVER include sensitive medical data
+      — only Name, NHI, and a boolean "has_consent" flag
+  [2] Only doctors (role=doctor) can access this endpoint
+      enforced by @role_required("doctor") decorator
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  Page B: Patient Record View  (/doctor/patient/:id)                     │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  Frontend
+  ────────
+  • Left panel: decrypted diagnosis & treatment history (chronological)
+  • Right panel: form to submit new clinical notes / prescriptions
+
+  Backend API
+  ───────────
+  GET   /api/records/view/<patient_id>  →  Fetch & decrypt patient records
+  POST  /api/records/add/<patient_id>   →  Encrypt & store new treatment note
+
+  Security Controls
+  ─────────────────
+  [1] ABAC Core Filter: @verify_consent decorator checks MongoDB for an
+      active, unexpired consent grant between current_doctor_id and patient_id
+      → Returns HTTP 403 Forbidden immediately if no valid grant found
+  [2] New treatment notes are AES-256-GCM encrypted before DB insert
+  [3] Records are decrypted in-memory only for authorized GET requests
+  [4] Every view and write is logged to audit_logs with full timestamp
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 4 — ADMIN PORTAL  [ PENDING — Week 4 ]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Page:  /admin/audit
+
+  Frontend
+  ────────
+  • Restricted table: timestamped log of all system actions
+  • Columns: Timestamp | Actor | Role | Action | Target
+
+  Backend API
+  ───────────
+  GET  /api/admin/logs  →  Return paginated audit log entries
+
+  Security Controls
+  ─────────────────
+  [1] Endpoint locked behind @role_required("admin") — JWT role check
+  [2] Logs are READ-ONLY — no modification or deletion endpoints exist
+  [3] Sample log entries:
+      "Doctor Smith viewed Patient Doe's file on 2026-05-25 at 11:52"
+      "Patient Doe revoked Doctor Smith's access on 2026-05-25 at 14:30"
+      "New user registered: role=patient on 2026-05-25 at 09:15"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  MONGODB COLLECTION SCHEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Collection: users
+  ─────────────────
+  {
+    _id:                ObjectId,
+    email:              String  (unique, indexed),
+    password_hash:      String  (bcrypt),
+    role:               "patient" | "doctor" | "admin",
+    full_name:          String,
+    national_health_id: String  (patients only, sparse index),
+    specialization:     String  (doctors only),
+    created_at:         DateTime,
+    is_active:          Boolean
+  }
+
+  Collection: medical_records
+  ───────────────────────────
+  {
+    _id:               ObjectId,
+    patient_id:        ObjectId  (ref: users),
+    doctor_id:         ObjectId  (ref: users),
+    encrypted_notes:   String    (AES-256-GCM ciphertext),
+    record_type:       "diagnosis" | "treatment" | "prescription",
+    created_at:        DateTime
+  }
+
+  Collection: consent_grants
+  ──────────────────────────
+  {
+    _id:        ObjectId,
+    patient_id: ObjectId  (ref: users),
+    doctor_id:  ObjectId  (ref: users),
+    granted_at: DateTime,
+    expires_at: DateTime,
+    is_revoked: Boolean
+  }
+
+  Collection: audit_logs
+  ──────────────────────
+  {
+    _id:        ObjectId,
+    actor_id:   String,
+    actor_role: String,
+    action:     String,
+    target_id:  String,
+    timestamp:  DateTime,
+    meta:       Object
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4-WEEK SPRINT SCHEDULE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Week 1  [✔ DONE]   Project structure + Phase 1 (Auth + JWT setup)
+  Week 2  [ ]        Phase 2 (Patient portal + AES-256 encryption storage)
+  Week 3  [ ]        Phase 3 (Doctor portal + @verify_consent ABAC filter)
+  Week 4  [ ]        Phase 4 (Admin panel) + security tests + documentation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECURITY SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Threat                  Mitigation
+  ──────────────────────  ────────────────────────────────────────────────────
+  Brute-force login       Rate limiting (Flask-Limiter): 20 req/hour on /login
+  XSS cookie theft        JWT in httpOnly + SameSite=Lax cookie
+  Password breach         bcrypt hashing (never stored in plaintext)
+  IDOR (URL tampering)    Patient ID sourced from JWT, not URL params
+  Unauthorized records    @verify_consent ABAC check on every record access
+  Data breach (DB leak)   AES-256-GCM encryption on all medical record fields
+  Privilege escalation    role claim embedded in JWT + @role_required() guard
+  Forensic traceability   Immutable audit_logs collection (read-only API)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

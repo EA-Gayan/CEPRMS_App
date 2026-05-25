@@ -1,0 +1,202 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║          CEPERM — How to Run the Project                                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PREREQUISITES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Make sure the following are installed on your machine before starting:
+
+  [ ]  Python 3.10 or higher     →  https://www.python.org/downloads/
+  [ ]  Node.js 18 or higher      →  https://nodejs.org/
+  [ ]  MongoDB Community Server  →  https://www.mongodb.com/try/download/community
+  [ ]  Git (optional)            →  https://git-scm.com/
+
+  To verify versions, open a terminal and run:
+
+      python --version
+      node --version
+      npm --version
+      mongod --version
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 1 — START MONGODB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Option A — If MongoDB is installed as a Windows Service (default):
+      It starts automatically. No action needed.
+      To verify it is running, open Task Manager → Services → find "MongoDB"
+
+  Option B — Start manually from terminal:
+      mongod --dbpath "C:\data\db"
+
+  Option C — Using MongoDB Compass (GUI):
+      Open MongoDB Compass and connect to: mongodb://localhost:27017
+      The app will auto-create the "ceperm" database on first run.
+
+  NOTE: The backend will fail to start if MongoDB is not running.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 2 — CONFIGURE THE BACKEND ENVIRONMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Open the file:  CEPERM\Backend\.env
+
+  It looks like this by default:
+
+      SECRET_KEY=change-me-in-production-use-a-long-random-string
+      JWT_SECRET_KEY=jwt-secret-change-me-use-a-long-random-string
+      MONGO_URI=mongodb://localhost:27017/ceperm
+      AES_ENCRYPTION_KEY=
+      FRONTEND_ORIGIN=http://localhost:5173
+
+  You MUST generate a value for AES_ENCRYPTION_KEY before the app
+  can encrypt medical records. Run this one-time command:
+
+      python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"
+
+  Copy the output and paste it as the value of AES_ENCRYPTION_KEY in .env:
+
+      AES_ENCRYPTION_KEY=your-generated-key-goes-here
+
+  You can also change SECRET_KEY and JWT_SECRET_KEY to any long random strings
+  for better security in development.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 3 — SET UP & RUN THE BACKEND (Flask)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Open Terminal 1 and run the following commands one by one:
+
+  ── Navigate to the Backend folder ───────────────────────────────────────────
+
+      cd "g:\practice app\CEPERM\Backend"
+
+  ── (Recommended) Create a Python virtual environment ────────────────────────
+
+      python -m venv venv
+      venv\Scripts\activate
+
+      You should see (venv) appear at the start of your terminal prompt.
+
+  ── Install Python dependencies ──────────────────────────────────────────────
+
+      pip install -r requirements.txt
+
+      This installs: Flask, PyMongo, Flask-JWT-Extended, Flask-Bcrypt,
+                     Flask-Limiter, Flask-CORS, cryptography, python-dotenv
+
+  ── Start the Flask development server ───────────────────────────────────────
+
+      python app.py
+
+  Expected output:
+      * Running on http://127.0.0.1:5000
+      * Debug mode: on
+
+  The backend is now running at: http://localhost:5000
+  Keep this terminal open.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 4 — SET UP & RUN THE FRONTEND (React + Vite)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Open Terminal 2 (a new terminal window) and run:
+
+  ── Navigate to the Frontend folder ──────────────────────────────────────────
+
+      cd "g:\practice app\CEPERM\Frontend"
+
+  ── Install Node dependencies (first time only) ───────────────────────────────
+
+      npm install
+
+  ── Start the Vite development server ────────────────────────────────────────
+
+      npm run dev
+
+  Expected output:
+      VITE v5.x.x  ready in xxx ms
+      ➜  Local:   http://localhost:5173/
+
+  The frontend is now running at: http://localhost:5173
+  Keep this terminal open.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 5 — OPEN THE APP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Open your browser and go to:
+
+      http://localhost:5173
+
+  You should see the CEPERM Login / Register page.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  AVAILABLE API ENDPOINTS (Phase 1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  You can test these directly using a tool like Postman or curl:
+
+  Method  Endpoint                  Description
+  ──────  ────────────────────────  ─────────────────────────────────────────
+  POST    /api/auth/register        Register a new patient or doctor account
+  POST    /api/auth/login           Login and receive a JWT cookie
+  POST    /api/auth/logout          Clear the JWT cookie (sign out)
+  GET     /api/auth/me              Get the current logged-in user's profile
+
+  Example — Register a patient (using curl):
+
+      curl -X POST http://localhost:5000/api/auth/register \
+           -H "Content-Type: application/json" \
+           -d "{\"email\":\"patient@example.com\",\"password\":\"Test1234\",\"role\":\"patient\",\"full_name\":\"Jane Doe\",\"national_health_id\":\"NHI-001\"}"
+
+  Example — Login:
+
+      curl -X POST http://localhost:5000/api/auth/login \
+           -H "Content-Type: application/json" \
+           -d "{\"email\":\"patient@example.com\",\"password\":\"Test1234\"}" \
+           -c cookies.txt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  QUICK REFERENCE — PORT MAP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Service     Port    URL
+  ──────────  ──────  ────────────────────────────────────
+  MongoDB     27017   mongodb://localhost:27017/ceperm
+  Flask API   5000    http://localhost:5000
+  React App   5173    http://localhost:5173   ← open this in browser
+
+  NOTE: The React Vite dev server automatically proxies all /api/* requests
+  to Flask at port 5000. You do not need to change any URLs in the frontend.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Problem                         Solution
+  ──────────────────────────────  ──────────────────────────────────────────
+  "Connection refused" on /api    Make sure Flask is running on port 5000
+  "ServerSelectionTimeoutError"   MongoDB is not running — start it first
+  "ModuleNotFoundError"           Run: pip install -r requirements.txt
+  "Cannot find module"            Run: npm install  in the Frontend folder
+  JWT errors on /api/auth/me      Make sure cookies are enabled in browser
+  AES decryption errors           Ensure AES_ENCRYPTION_KEY is set in .env
+                                  and has NOT changed since records were saved
+  Port 5000 already in use        Change port in app.py: app.run(port=5001)
+                                  and update vite.config.js proxy target
+  Port 5173 already in use        Vite will auto-pick the next free port
+                                  (check terminal output for the actual URL)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STOPPING THE SERVERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  In each terminal window, press:   Ctrl + C
+
+  To deactivate the Python virtual environment:
+      deactivate
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
